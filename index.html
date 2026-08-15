@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0c0c0e">
+<meta name="theme-color" content="#0a0a0b">
 <meta name="robots" content="noindex, nofollow">
 <title>Painel · Instituto Alfa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/painel.css">
-<link rel="stylesheet" href="css/painel-mobile.css">
+<link rel="stylesheet" href="css/painel-ui.css">
 </head>
 <body>
 
@@ -26,23 +26,18 @@
     <input id="l-senha" type="password" required autocomplete="current-password" placeholder="••••••••">
     <p class="erro" id="loginErro" hidden></p>
     <button class="btn btn-gold" type="submit">Entrar</button>
-    <p class="cfg" id="cfgAviso" hidden>⚠️ Supabase não configurado. Edite <code>js/config.js</code>.</p>
+    <p class="cfg" id="cfgAviso" hidden>Supabase não configurado. Edite <code>js/config.js</code>.</p>
   </form>
 </div>
 
 <!-- ===================== APP ===================== -->
 <div id="app" hidden>
+
   <header class="topbar">
     <div class="brand">
       <img src="assets/logo-alfa.png" alt="" width="34" height="34">
       <b>ALFA</b><span>painel</span>
     </div>
-    <nav class="abas" id="abas">
-      <button class="aba active" data-tab="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.2" y="3.2" width="7.4" height="8.6" rx="1.6"/><rect x="13.4" y="3.2" width="7.4" height="5.4" rx="1.6"/><rect x="13.4" y="10.6" width="7.4" height="10.2" rx="1.6"/><rect x="3.2" y="13.8" width="7.4" height="7" rx="1.6"/></svg><span>Visão geral</span></button>
-      <button class="aba" data-tab="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.2" cy="8" r="3.4"/><path d="M2.8 20.2a6.4 6.4 0 0 1 12.8 0"/><path d="M16.8 5.2a3.2 3.2 0 0 1 0 6"/><path d="M18.2 20.2a5.4 5.4 0 0 0-2.6-4.6"/></svg><span>Leads</span></button>
-      <button class="aba" data-tab="matriculas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.4 3.4 8.6 12 12.8l8.6-4.2L12 4.4Z"/><path d="M6.8 10.4v3.8c0 1.4 2.3 2.6 5.2 2.6s5.2-1.2 5.2-2.6v-3.8"/><path d="M20.6 8.6v4.4"/></svg><span>Matrículas</span></button>
-      <button class="aba" data-tab="financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.6" y="5.6" width="18.8" height="13" rx="2.4"/><path d="M2.6 10h18.8"/><path d="M6.4 14.6h3.4"/></svg><span>Financeiro</span></button>
-    </nav>
     <div class="user">
       <span id="userEmail"></span>
       <button class="btn-min" id="btnSair">Sair</button>
@@ -53,28 +48,53 @@
 
     <!-- ---------- DASHBOARD ---------- -->
     <section class="tab" id="tab-dash">
-      <div class="kpis" id="kpis"></div>
-      <div class="painel-grid">
-        <div class="box">
-          <h3>Leads por dia <small>(últimos 30 dias)</small></h3>
-          <div class="spark" id="graficoLeads"></div>
+      <div class="tela-head">
+        <div class="th-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="3.2" width="7.4" height="8.6" rx="1.6"/><rect x="13.4" y="3.2" width="7.4" height="5.4" rx="1.6"/><rect x="13.4" y="10.6" width="7.4" height="10.2" rx="1.6"/><rect x="3.2" y="13.8" width="7.4" height="7" rx="1.6"/></svg>
         </div>
-        <div class="box">
-          <h3>Cursos mais procurados</h3>
-          <div class="rank" id="rankCursos"></div>
+        <div class="th-txt">
+          <h1>Visão geral</h1>
+          <p>O Instituto Alfa em números</p>
         </div>
       </div>
-      <div class="box">
-        <h3>Contas a vencer nos próximos 15 dias</h3>
+
+      <div id="kpis"></div>
+      <div id="atalhos"></div>
+
+      <div class="cartao">
+        <div class="cartao-head"><h3>Cursos mais procurados</h3><button class="link-min" data-ir="leads">Ver leads</button></div>
+        <div class="rank" id="rankCursos"></div>
+      </div>
+
+      <div class="cartao">
+        <div class="cartao-head"><h3>Contas a vencer</h3><button class="link-min" data-ir="financeiro">Ver tudo</button></div>
         <div id="proxVencimentos"></div>
       </div>
     </section>
 
     <!-- ---------- LEADS ---------- -->
     <section class="tab" id="tab-leads" hidden>
-      <div class="toolbar">
-        <input id="buscaLead" type="search" placeholder="Buscar por nome, telefone, e-mail ou curso…">
-        <select id="filtroStatus">
+      <div class="tela-head">
+        <div class="th-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.2" cy="8" r="3.4"/><path d="M2.8 20.2a6.4 6.4 0 0 1 12.8 0"/><path d="M16.8 5.2a3.2 3.2 0 0 1 0 6"/><path d="M18.2 20.2a5.4 5.4 0 0 0-2.6-4.6"/></svg>
+        </div>
+        <div class="th-txt">
+          <h1>Leads</h1>
+          <p>Gerencie e acompanhe seus leads</p>
+        </div>
+      </div>
+
+      <div id="heroLeads"></div>
+      <div id="tilesLeads"></div>
+
+      <div class="cartao">
+        <div class="cartao-head"><h3>Funil de leads</h3></div>
+        <div id="funilLeads"></div>
+      </div>
+
+      <div class="toolbar" id="toolbarLeads">
+        <input id="buscaLead" type="search" placeholder="Buscar nome, telefone, e-mail ou curso…">
+        <select id="filtroStatus" aria-label="Filtrar por status">
           <option value="">Todos os status</option>
           <option value="novo">Novo</option>
           <option value="contatado">Contatado</option>
@@ -82,7 +102,7 @@
           <option value="matriculado">Matriculado</option>
           <option value="perdido">Perdido</option>
         </select>
-        <select id="filtroPeriodo">
+        <select id="filtroPeriodo" aria-label="Filtrar por período">
           <option value="0">Todo o período</option>
           <option value="1">Hoje</option>
           <option value="7">Últimos 7 dias</option>
@@ -90,44 +110,103 @@
         </select>
         <button class="btn-min" id="btnCSV">Exportar CSV</button>
       </div>
-      <div class="tabela-wrap"><table class="tabela" id="tabelaLeads"></table></div>
+
+      <div class="lista" id="tabelaLeads"></div>
       <p class="vaziomsg" id="leadsVazio" hidden>Nenhum lead com esses filtros.</p>
     </section>
 
     <!-- ---------- MATRÍCULAS ---------- -->
     <section class="tab" id="tab-matriculas" hidden>
+      <div class="tela-head">
+        <div class="th-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.4 3.4 8.6 12 12.8l8.6-4.2L12 4.4Z"/><path d="M6.8 10.4v3.8c0 1.4 2.3 2.6 5.2 2.6s5.2-1.2 5.2-2.6v-3.8"/><path d="M20.6 8.6v4.4"/></svg>
+        </div>
+        <div class="th-txt">
+          <h1>Matrículas</h1>
+          <p>Acompanhe suas matrículas</p>
+        </div>
+      </div>
+
+      <div id="heroMat"></div>
+      <div id="tilesMat"></div>
+
       <div class="toolbar">
         <input id="buscaMat" type="search" placeholder="Buscar aluno ou curso…">
         <button class="btn-min primario" id="btnNovaMatricula">+ Nova matrícula</button>
       </div>
-      <div class="tabela-wrap"><table class="tabela" id="tabelaMat"></table></div>
+
+      <div class="lista" id="tabelaMat"></div>
       <p class="vaziomsg" id="matVazio" hidden>Nenhuma matrícula registrada ainda.</p>
     </section>
 
     <!-- ---------- FINANCEIRO ---------- -->
     <section class="tab" id="tab-financeiro" hidden>
+      <div class="tela-head">
+        <div class="th-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="5.6" width="18.8" height="13" rx="2.4"/><path d="M2.6 10h18.8"/><path d="M6.4 14.6h3.4"/></svg>
+        </div>
+        <div class="th-txt">
+          <h1>Financeiro</h1>
+          <p>Resumo financeiro do período</p>
+        </div>
+      </div>
+
+      <div id="heroFin"></div>
       <div class="kpis" id="kpisFin"></div>
+
+      <div class="cartao">
+        <div class="cartao-head"><h3>Resumo do período</h3></div>
+        <div id="resumoFin"></div>
+      </div>
+
       <div class="toolbar">
-        <select id="filtroFinStatus">
+        <select id="filtroFinStatus" aria-label="Filtrar por situação">
           <option value="">Todos</option>
           <option value="pendente">Pendentes</option>
           <option value="atrasado">Atrasados</option>
           <option value="pago">Pagos</option>
         </select>
-        <select id="filtroFinTipo">
+        <select id="filtroFinTipo" aria-label="Filtrar por tipo">
           <option value="">Entradas e saídas</option>
           <option value="entrada">Só entradas</option>
           <option value="saida">Só saídas</option>
         </select>
-        <input id="filtroFinMes" type="month">
+        <input id="filtroFinMes" type="month" aria-label="Filtrar por mês">
         <button class="btn-min primario" id="btnNovoLanc">+ Lançamento</button>
         <button class="btn-min" id="btnCSVFin">Exportar CSV</button>
       </div>
-      <div class="tabela-wrap"><table class="tabela" id="tabelaFin"></table></div>
+
+      <div class="lista" id="tabelaFin"></div>
       <p class="vaziomsg" id="finVazio" hidden>Nenhum lançamento com esses filtros.</p>
     </section>
 
   </main>
+
+  <!-- ---------- BARRA DE NAVEGAÇÃO ---------- -->
+  <nav class="abas" id="abas" aria-label="Seções do painel">
+    <button class="aba active" data-tab="dash">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.2" y="3.2" width="7.4" height="8.6" rx="1.6"/><rect x="13.4" y="3.2" width="7.4" height="5.4" rx="1.6"/><rect x="13.4" y="10.6" width="7.4" height="10.2" rx="1.6"/><rect x="3.2" y="13.8" width="7.4" height="7" rx="1.6"/></svg>
+      <span>Visão geral</span>
+    </button>
+    <button class="aba" data-tab="leads">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.2" cy="8" r="3.4"/><path d="M2.8 20.2a6.4 6.4 0 0 1 12.8 0"/><path d="M16.8 5.2a3.2 3.2 0 0 1 0 6"/><path d="M18.2 20.2a5.4 5.4 0 0 0-2.6-4.6"/></svg>
+      <span>Leads</span>
+    </button>
+
+    <button class="fab-add" id="fabAdd" aria-label="Adicionar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg>
+    </button>
+
+    <button class="aba" data-tab="matriculas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.4 3.4 8.6 12 12.8l8.6-4.2L12 4.4Z"/><path d="M6.8 10.4v3.8c0 1.4 2.3 2.6 5.2 2.6s5.2-1.2 5.2-2.6v-3.8"/><path d="M20.6 8.6v4.4"/></svg>
+      <span>Matrículas</span>
+    </button>
+    <button class="aba" data-tab="financeiro">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.6" y="5.6" width="18.8" height="13" rx="2.4"/><path d="M2.6 10h18.8"/><path d="M6.4 14.6h3.4"/></svg>
+      <span>Financeiro</span>
+    </button>
+  </nav>
+
 </div>
 
 <dialog id="dlg"></dialog>
