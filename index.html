@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Painel · Instituto Alfa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/painel.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="telaLogin" class="login-wrap">
+  <form class="login-card" id="loginForm">
+    <img src="assets/logo-alfa.png" alt="" width="54" height="54">
+    <h1>Painel Instituto Alfa</h1>
+    <p class="sub">Acesso restrito à equipe.</p>
+    <label for="l-email">E-mail</label>
+    <input id="l-email" type="email" required autocomplete="username" placeholder="voce@institutoalfa.com">
+    <label for="l-senha">Senha</label>
+    <input id="l-senha" type="password" required autocomplete="current-password" placeholder="••••••••">
+    <p class="erro" id="loginErro" hidden></p>
+    <button class="btn btn-gold" type="submit">Entrar</button>
+    <p class="cfg" id="cfgAviso" hidden>⚠️ Supabase não configurado. Edite <code>js/config.js</code>.</p>
+  </form>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/logo-alfa.png" alt="" width="34" height="34">
+      <b>ALFA</b><span>painel</span>
+    </div>
+    <nav class="abas" id="abas">
+      <button class="aba active" data-tab="dash">Visão geral</button>
+      <button class="aba" data-tab="leads">Leads</button>
+      <button class="aba" data-tab="matriculas">Matrículas</button>
+      <button class="aba" data-tab="financeiro">Financeiro</button>
+    </nav>
+    <div class="user">
+      <span id="userEmail"></span>
+      <button class="btn-min" id="btnSair">Sair</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- ---------- DASHBOARD ---------- -->
+    <section class="tab" id="tab-dash">
+      <div class="kpis" id="kpis"></div>
+      <div class="painel-grid">
+        <div class="box">
+          <h3>Leads por dia <small>(últimos 30 dias)</small></h3>
+          <div class="spark" id="graficoLeads"></div>
+        </div>
+        <div class="box">
+          <h3>Cursos mais procurados</h3>
+          <div class="rank" id="rankCursos"></div>
+        </div>
+      </div>
+      <div class="box">
+        <h3>Contas a vencer nos próximos 15 dias</h3>
+        <div id="proxVencimentos"></div>
+      </div>
+    </section>
+
+    <!-- ---------- LEADS ---------- -->
+    <section class="tab" id="tab-leads" hidden>
+      <div class="toolbar">
+        <input id="buscaLead" type="search" placeholder="Buscar por nome, telefone, e-mail ou curso…">
+        <select id="filtroStatus">
+          <option value="">Todos os status</option>
+          <option value="novo">Novo</option>
+          <option value="contatado">Contatado</option>
+          <option value="negociacao">Em negociação</option>
+          <option value="matriculado">Matriculado</option>
+          <option value="perdido">Perdido</option>
+        </select>
+        <select id="filtroPeriodo">
+          <option value="0">Todo o período</option>
+          <option value="1">Hoje</option>
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+        </select>
+        <button class="btn-min" id="btnCSV">Exportar CSV</button>
+      </div>
+      <div class="tabela-wrap"><table class="tabela" id="tabelaLeads"></table></div>
+      <p class="vaziomsg" id="leadsVazio" hidden>Nenhum lead com esses filtros.</p>
+    </section>
+
+    <!-- ---------- MATRÍCULAS ---------- -->
+    <section class="tab" id="tab-matriculas" hidden>
+      <div class="toolbar">
+        <input id="buscaMat" type="search" placeholder="Buscar aluno ou curso…">
+        <button class="btn-min primario" id="btnNovaMatricula">+ Nova matrícula</button>
+      </div>
+      <div class="tabela-wrap"><table class="tabela" id="tabelaMat"></table></div>
+      <p class="vaziomsg" id="matVazio" hidden>Nenhuma matrícula registrada ainda.</p>
+    </section>
+
+    <!-- ---------- FINANCEIRO ---------- -->
+    <section class="tab" id="tab-financeiro" hidden>
+      <div class="kpis" id="kpisFin"></div>
+      <div class="toolbar">
+        <select id="filtroFinStatus">
+          <option value="">Todos</option>
+          <option value="pendente">Pendentes</option>
+          <option value="atrasado">Atrasados</option>
+          <option value="pago">Pagos</option>
+        </select>
+        <select id="filtroFinTipo">
+          <option value="">Entradas e saídas</option>
+          <option value="entrada">Só entradas</option>
+          <option value="saida">Só saídas</option>
+        </select>
+        <input id="filtroFinMes" type="month">
+        <button class="btn-min primario" id="btnNovoLanc">+ Lançamento</button>
+        <button class="btn-min" id="btnCSVFin">Exportar CSV</button>
+      </div>
+      <div class="tabela-wrap"><table class="tabela" id="tabelaFin"></table></div>
+      <p class="vaziomsg" id="finVazio" hidden>Nenhum lançamento com esses filtros.</p>
+    </section>
+
+  </main>
+</div>
+
+<dialog id="dlg"></dialog>
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="js/painel.js"></script>
+</body>
+</html>
