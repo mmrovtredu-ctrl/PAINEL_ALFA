@@ -1,0 +1,278 @@
+/* ============================================================
+   PAINEL — camada mobile (iPhone primeiro)
+   Carregada DEPOIS de painel.css. Não muda cor nem regra de
+   negócio: muda navegação, densidade e alvo de toque.
+
+   Princípio: o painel é usado no celular, com uma mão só, no
+   meio do atendimento. Desktop é o caso secundário.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   0. Base — vale em qualquer tela
+------------------------------------------------------------ */
+:root {
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --tabbar-h: 74px;
+}
+
+/* o Safari dá zoom sozinho em campo com menos de 16px */
+input, select, textarea { font-size: 16px; }
+
+/* sem o realce cinza do iOS: o retorno é o nosso */
+button, a, .aba, .btn-min, select { -webkit-tap-highlight-color: transparent; }
+.btn-min:active, .btn:active { transform: scale(.96); }
+.btn-min, .btn { transition: transform .14s cubic-bezier(.2,.9,.25,1), background .2s, border-color .2s; }
+
+/* ------------------------------------------------------------
+   1. CELULAR
+------------------------------------------------------------ */
+@media (max-width: 860px) {
+
+  body { overscroll-behavior-y: contain; }
+
+  /* --- 1.1 topo enxuto: só marca e sair ---
+     Sem backdrop-filter aqui: um ancestral com backdrop-filter vira
+     bloco de contenção e faz `position:fixed` do filho se prender a ELE.
+     Era isso que colava a barra de abas embaixo do topo, e não da tela. */
+  .topbar {
+    gap: 10px;
+    padding: calc(10px + var(--safe-t)) 14px 10px;
+    flex-wrap: nowrap;
+    background: rgba(12,12,14,.97);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .topbar .brand span { display: none; }
+  .topbar .user { margin-left: auto; }
+  .topbar .user span { display: none; }
+
+  /* --- 1.2 abas viram barra de baixo: é onde o polegar chega --- */
+  .abas {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    overflow: visible;
+    padding: 7px 4px calc(9px + var(--safe-b));
+    background: rgba(12,12,14,.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line-2);
+  }
+  .aba {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 50px;                 /* acima dos 44 pt da Apple */
+    padding: 4px 2px;
+    border-radius: 12px;
+    font-size: .62rem;
+    white-space: nowrap;
+    font-weight: 800;
+    letter-spacing: .02em;
+    line-height: 1.1;
+    background: none;
+  }
+  .aba svg { width: 21px; height: 21px; flex: none; }
+  .aba.active { background: none; color: var(--gold); }
+  .aba.active svg { stroke-width: 2.3; }
+  .aba.active::after {
+    content: "";
+    width: 18px; height: 3px; border-radius: 99px;
+    background: var(--gold);
+    margin-top: 1px;
+  }
+  .aba:active { transform: scale(.94); }
+
+  /* espaço para a barra não cobrir o conteúdo */
+  .wrap { padding: 16px 14px calc(var(--tabbar-h) + var(--safe-b) + 28px); }
+
+  /* --- 1.3 KPIs: dois por linha, compactos --- */
+  .kpis { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi  { padding: 14px 13px; border-radius: 14px; }
+  .kpi .k { font-size: .62rem; }
+  .kpi .v { font-size: 1.5rem; }
+  .kpi .d { font-size: .68rem; }
+
+  .box { padding: 16px 14px; border-radius: 14px; }
+  .box h3 { font-size: .92rem; }
+
+  /* --- 1.4 filtros: uma linha que rola, sem quebrar a tela --- */
+  .toolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 8px;
+    margin: 0 -14px 14px;
+    padding: 0 14px 4px;
+  }
+  .toolbar::-webkit-scrollbar { display: none; }
+  .toolbar > * { flex: none; min-height: 44px; }
+  .toolbar input[type=search] { flex: 1 0 62%; min-width: 0; }
+
+  /* --- 1.5 A MUDANÇA PRINCIPAL: tabela vira cartão ---
+     Nada de rolar a tela para o lado para ler um lead.        */
+  .tabela-wrap { border: 0; background: none; overflow: visible; border-radius: 0; }
+  .tabela      { min-width: 0; width: 100%; display: block; font-size: .9rem; }
+  .tabela thead { display: none; }
+  .tabela tbody { display: flex; flex-direction: column; gap: 10px; }
+
+  .tabela tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .tabela tbody tr:hover { background: var(--surface); }
+
+  .tabela td {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  /* o rótulo da coluna vira etiqueta da linha do cartão */
+  .tabela td::before {
+    content: attr(data-l);
+    flex: none;
+    width: 92px;
+    font-size: .66rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+  }
+
+  /* título do cartão: grande, sem etiqueta */
+  .tabela td.c-titulo {
+    grid-column: 1 / 2;
+    order: -3;
+    font-size: 1.02rem;
+    font-weight: 800;
+    display: block;
+  }
+  .tabela td.c-titulo::before { display: none; }
+  .tabela td.c-titulo .nome { font-size: 1.02rem; }
+
+  /* data no canto superior direito, discreta */
+  .tabela td.c-quando {
+    grid-column: 2 / 3;
+    order: -3;
+    justify-content: flex-end;
+    font-size: .74rem;
+    color: var(--muted-2);
+    white-space: nowrap;
+  }
+  .tabela td.c-quando::before { display: none; }
+
+  /* curso / descrição logo abaixo do nome */
+  .tabela td.c-sub { order: -2; display: block; color: var(--muted); font-size: .86rem; }
+  .tabela td.c-sub::before { display: none; }
+
+  .tabela td.c-valor { order: -1; font-size: 1.05rem; font-weight: 800; }
+  .tabela td.c-valor::before { display: none; }
+
+  /* status e ações no rodapé do cartão */
+  .tabela td.c-status {
+    order: 8;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+  .tabela td.c-status::before { display: none; }
+  .tabela td.c-status .status-sel { width: 100%; min-height: 46px; }
+
+  .tabela td.c-acoes { order: 9; }
+  .tabela td.c-acoes::before { display: none; }
+  .tabela td.c-acoes .acoes,
+  .tabela td.c-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tabela td.c-acoes .btn-min {
+    flex: 1 1 auto;
+    min-height: 44px;
+    justify-content: center;
+    display: inline-flex;
+    align-items: center;
+  }
+  /* no celular ele ocupa a linha inteira */
+  .tabela td.c-acoes .wa-btn { flex: 1 0 100%; }
+
+  /* --- 1.6 diálogos viram folha que sobe de baixo --- */
+  dialog#dlg {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92dvh;
+    margin: auto auto 0;
+  }
+  .dlg-card {
+    border-radius: 22px 22px 0 0;
+    max-height: 92dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-top: 26px;
+    padding-bottom: calc(22px + var(--safe-b));
+  }
+  .dlg-card::before {
+    content: "";
+    position: absolute;
+    top: 9px; left: 50%;
+    transform: translateX(-50%);
+    width: 44px; height: 4px; border-radius: 99px;
+    background: rgba(255,255,255,.28);
+  }
+  .dlg-card { position: relative; }
+  .dlg-acoes { position: sticky; bottom: 0; background: var(--bg-2); padding-top: 12px; }
+  .dlg-acoes .btn-min { flex: 1; min-height: 48px; justify-content: center; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    dialog#dlg[open] { animation: folhaPainel .28s cubic-bezier(.2,.9,.25,1); }
+    @keyframes folhaPainel { from { transform: translateY(100%); } }
+  }
+
+  /* --- 1.7 toast acima da barra de abas --- */
+  .toast { bottom: calc(var(--tabbar-h) + var(--safe-b) + 14px); width: calc(100% - 28px); text-align: center; }
+
+  /* --- 1.8 login confortável --- */
+  .login-card { padding: 28px 22px; }
+  .login-card input { min-height: 50px; }
+}
+
+/* ------------------------------------------------------------
+   2. DESKTOP — os ícones das abas ficam, o resto não muda
+------------------------------------------------------------ */
+@media (min-width: 861px) {
+  .aba { display: inline-flex; align-items: center; gap: 8px; }
+  .aba svg { width: 17px; height: 17px; }
+}
+
+/* ------------------------------------------------------------
+   3. O WhatsApp é a ação mais usada do painel — verde em qualquer tela
+------------------------------------------------------------ */
+.tabela .acoes a { text-decoration: none; }
+.wa-btn {
+  background: #25d366;
+  border-color: #25d366;
+  color: #04210f;
+  font-weight: 800;
+}
+.wa-btn:hover { background: #2ee576; border-color: #2ee576; }
+
+/* ------------------------------------------------------------
+   4. Estado vazio menos seco
+------------------------------------------------------------ */
+.vaziomsg { text-align: center; color: var(--muted); padding: 30px 16px; }
