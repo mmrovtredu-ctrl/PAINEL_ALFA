@@ -79,11 +79,30 @@ $("#btnSair").addEventListener("click", async () => {
 /* ============================================================
    ABAS
    ============================================================ */
+let abaAtual = "dash";
+
+function irPara(tab) {
+  abaAtual = tab;
+  $$(".aba").forEach(a => a.classList.toggle("active", a.dataset.tab === tab));
+  $$(".tab").forEach(t => (t.hidden = t.id !== "tab-" + tab));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 $("#abas").addEventListener("click", (e) => {
   const b = e.target.closest(".aba");
-  if (!b) return;
-  $$(".aba").forEach(a => a.classList.toggle("active", a === b));
-  $$(".tab").forEach(t => (t.hidden = t.id !== "tab-" + b.dataset.tab));
+  if (b) irPara(b.dataset.tab);
+});
+
+/* atalhos do painel: os cartões da visão geral levam para a tela certa */
+document.addEventListener("click", (e) => {
+  const ir = e.target.closest("[data-ir]");
+  if (ir) irPara(ir.dataset.ir);
+});
+
+/* botão + : o que ele cria depende de onde você está */
+$("#fabAdd").addEventListener("click", () => {
+  if (abaAtual === "financeiro") return formLancamento();
+  formMatricula(null);
 });
 
 /* ============================================================
@@ -104,6 +123,103 @@ async function carregarTudo() {
 }
 
 /* ============================================================
+   PEÇAS DA INTERFACE
+   Tudo desenhado a partir dos dados reais. Nada de número fixo.
+   ============================================================ */
+
+/** Série de contagens por dia. `n` dias até hoje. */
+function serieDias(itens, campoData, n) {
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const dt = new Date(Date.now() - i * 864e5);
+    const chave = dt.toISOString().slice(0, 10);
+    out.push({
+      chave,
+      label: dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+      n: itens.filter(x => String(x[campoData] || "").slice(0, 10) === chave).length,
+    });
+  }
+  return out;
+}
+
+/** Variação percentual entre a primeira e a segunda metade da série. */
+function variacao(serie) {
+  const meio = Math.floor(serie.length / 2);
+  const a = serie.slice(0, meio).reduce((s, d) => s + d.n, 0);
+  const b = serie.slice(meio).reduce((s, d) => s + d.n, 0);
+  if (!a) return b ? 100 : 0;
+  return ((b - a) / a) * 100;
+}
+
+/** Linha suave em SVG. Escala sozinha na largura — nunca estoura a tela. */
+function sparkline(vals, id = "sl") {
+  const max = Math.max(1, ...vals);
+  const n = Math.max(vals.length, 2);
+  const pts = vals.map((v, i) => [
+    (i / (n - 1)) * 100,
+    30 - (v / max) * 26,
+  ]);
+  const linha = pts.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+  const area = `0,32 ${linha} 100,32`;
+  return `<svg class="spark-svg" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+      <polygon points="${area}" fill="rgba(255,255,255,.16)"></polygon>
+      <polyline points="${linha}" fill="none" stroke="currentColor" stroke-width="1.6"
+                stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+      ${pts.map(([x, y]) => `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="1.5" fill="currentColor"/>`).join("")}
+    </svg>`;
+}
+
+/** Barras com rótulo de dia. */
+function barras(serie) {
+  const max = Math.max(1, ...serie.map(d => d.n));
+  return `<div class="barras">${serie.map(d => `
+    <div class="barra-col" title="${d.label}: ${d.n}">
+      <div class="barra-tubo"><i style="height:${Math.max(4, d.n / max * 100)}%"></i></div>
+      <span>${d.label}</span>
+    </div>`).join("")}</div>`;
+}
+
+/** Cartão grande do topo de cada tela. */
+function hero(cls, valor, rotulo, delta, grafico) {
+  const sinal = delta >= 0 ? "↑" : "↓";
+  return `<div class="hero ${cls}">
+    <div class="hero-top">
+      <div>
+        <div class="hero-v">${valor}</div>
+        <div class="hero-r">${rotulo}</div>
+      </div>
+      <div class="hero-delta ${delta >= 0 ? "up" : "down"}">
+        <b>${sinal} ${Math.abs(delta).toFixed(1).replace(".", ",")}%</b>
+        <span>vs. período anterior</span>
+      </div>
+    </div>
+    <div class="hero-graf">${grafico}</div>
+  </div>`;
+}
+
+/** Quadradinho de métrica. */
+const tile = (ico, valor, rotulo, cor = "") =>
+  `<div class="tile ${cor}">
+     <span class="tile-ico" aria-hidden="true">${ico}</span>
+     <div class="tile-v">${valor}</div>
+     <div class="tile-r">${rotulo}</div>
+   </div>`;
+
+/* ícones curtos, em traço, herdando a cor */
+const IC = {
+  pessoas: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.2" cy="8" r="3.4"/><path d="M2.8 20.2a6.4 6.4 0 0 1 12.8 0"/><path d="M16.8 5.2a3.2 3.2 0 0 1 0 6"/><path d="M18.2 20.2a5.4 5.4 0 0 0-2.6-4.6"/></svg>`,
+  novo:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M3.6 20.2a6.4 6.4 0 0 1 12.8 0"/><path d="M18.4 7v6M21.4 10h-6"/></svg>`,
+  fone:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 16.9v2.6a1.8 1.8 0 0 1-1.9 1.8 17.6 17.6 0 0 1-7.7-2.7 17.3 17.3 0 0 1-5.3-5.3A17.6 17.6 0 0 1 2.8 5.5 1.8 1.8 0 0 1 4.6 3.6h2.6a1.8 1.8 0 0 1 1.8 1.6c.1.9.3 1.7.7 2.5a1.8 1.8 0 0 1-.4 1.9l-1.1 1.1a14.4 14.4 0 0 0 5.3 5.3l1.1-1.1a1.8 1.8 0 0 1 1.9-.4c.8.3 1.6.6 2.5.7a1.8 1.8 0 0 1 1.4 1.8Z"/></svg>`,
+  ok:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.8"/><path d="m8.2 12.3 2.6 2.6 5-5.4"/></svg>`,
+  capelo:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.4 3.4 8.6 12 12.8l8.6-4.2L12 4.4Z"/><path d="M6.8 10.4v3.8c0 1.4 2.3 2.6 5.2 2.6s5.2-1.2 5.2-2.6v-3.8"/></svg>`,
+  dinheiro:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.8"/><path d="M12 7v10M14.6 9.4c-.5-.7-1.5-1.1-2.6-1.1-1.6 0-2.6.8-2.6 1.9 0 2.7 5.2 1.4 5.2 4.1 0 1.1-1 1.9-2.6 1.9-1.1 0-2.1-.4-2.6-1.1"/></svg>`,
+  grafico: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 20h17.2"/><path d="m4.6 15.4 4.4-4.6 3.4 3 5.6-6"/><path d="M18 7.6h2.2v2.2"/></svg>`,
+  perdido: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.8"/><path d="m9.4 9.4 5.2 5.2M14.6 9.4l-5.2 5.2"/></svg>`,
+  alerta:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6 21.4 20H2.6L12 3.6Z"/><path d="M12 9.6v4.2M12 17h.01"/></svg>`,
+  seta:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6.5 18.5 12 13 17.5"/></svg>`,
+};
+
+/* ============================================================
    DASHBOARD
    ============================================================ */
 function renderDash() {
@@ -112,7 +228,8 @@ function renderDash() {
   const novos30 = LEADS.filter(l => new Date(l.created_at) >= d30).length;
   const novos7  = LEADS.filter(l => new Date(l.created_at) >= d7).length;
   const matric  = LEADS.filter(l => l.status === "matriculado").length;
-  const conv    = LEADS.length ? (matric / LEADS.length * 100).toFixed(1) : "0";
+  const conv    = LEADS.length ? (matric / LEADS.length * 100) : 0;
+  const ativas  = MATRICULAS.filter(m => m.status === "ativa").length;
 
   const recebido = LANCAMENTOS.filter(x => x.tipo === "entrada" && x.status === "pago")
     .reduce((s, x) => s + +x.valor, 0);
@@ -121,57 +238,78 @@ function renderDash() {
   const atrasado = LANCAMENTOS.filter(x => x.status_efetivo === "atrasado" && x.tipo === "entrada")
     .reduce((s, x) => s + +x.valor, 0);
 
+  const serie14 = serieDias(LEADS, "created_at", 14);
+
+  /* ---- cartão "Visão geral": 4 números + gráfico ---- */
   $("#kpis").innerHTML = `
-    ${kpi("Leads (7 dias)", novos7, `${novos30} nos últimos 30 dias`)}
-    ${kpi("Leads no total", LEADS.length, `${LEADS.filter(l => l.status === "novo").length} ainda sem contato`)}
-    ${kpi("Taxa de matrícula", conv + "%", `${matric} leads viraram aluno`, matric ? "ok" : "")}
-    ${kpi("Matrículas ativas", MATRICULAS.filter(m => m.status === "ativa").length, "alunos em curso")}
-    ${kpi("Recebido", BRL(recebido), "lançamentos pagos", "ok")}
-    ${kpi("A receber", BRL(aReceber), "ainda no prazo", "warn")}
-    ${kpi("Em atraso", BRL(atrasado), "vencidos e não pagos", atrasado ? "bad" : "")}`;
+    <div class="cartao">
+      <div class="cartao-head">
+        <h3>Últimos 14 dias</h3>
+        <span class="chip-min">${serie14.reduce((s, d) => s + d.n, 0)} leads</span>
+      </div>
+      <div class="grade-4">
+        ${tile(IC.pessoas,  LEADS.length,      "Leads no total",   "roxo")}
+        ${tile(IC.capelo,   ativas,            "Matrículas ativas","azul")}
+        ${tile(IC.dinheiro, BRL(recebido),     "Recebido",         "verde")}
+        ${tile(IC.grafico,  conv.toFixed(1).replace(".", ",") + "%", "Conversão", "dourado")}
+      </div>
+      <div class="graf-linha">${sparkline(serie14.map(d => d.n))}</div>
+      <div class="graf-eixo">
+        <span>${serie14[0].label}</span><span>${serie14[Math.floor(serie14.length / 2)].label}</span><span>${serie14[serie14.length - 1].label}</span>
+      </div>
+    </div>`;
 
-  /* leads por dia — 30 barras */
-  const dias = [];
-  for (let i = 29; i >= 0; i--) {
-    const dt = new Date(Date.now() - i * 864e5);
-    const chave = dt.toISOString().slice(0, 10);
-    dias.push({ chave, label: dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
-      n: LEADS.filter(l => l.created_at.slice(0, 10) === chave).length });
-  }
-  const max = Math.max(1, ...dias.map(d => d.n));
-  $("#graficoLeads").innerHTML = dias.map(d =>
-    `<div class="barra" style="height:${Math.max(3, d.n / max * 100)}%" data-t="${d.label}: ${d.n} lead${d.n === 1 ? "" : "s"}"></div>`).join("");
+  /* ---- três atalhos para as outras telas ---- */
+  const atalho = (id, cor, ico, titulo, sub, itens) => `
+    <button class="atalho ${cor}" data-ir="${id}">
+      <div class="at-top">
+        <span class="at-ico" aria-hidden="true">${ico}</span>
+        <div class="at-txt"><b>${titulo}</b><small>${sub}</small></div>
+        <span class="at-seta" aria-hidden="true">${IC.seta}</span>
+      </div>
+      <div class="at-nums">
+        ${itens.map(([v, r]) => `<div><b>${v}</b><small>${r}</small></div>`).join("")}
+      </div>
+    </button>`;
 
-  /* ranking de cursos */
+  $("#atalhos").innerHTML = `
+    <div class="atalhos">
+      ${atalho("leads", "roxo", IC.pessoas, "Leads", "Gerencie e acompanhe", [
+        [LEADS.length, "Total"], [novos7, "Novos (7 dias)"],
+        [conv.toFixed(1).replace(".", ",") + "%", "Conversão"]])}
+      ${atalho("matriculas", "azul", IC.capelo, "Matrículas", "Alunos em curso", [
+        [MATRICULAS.length, "Total"], [ativas, "Ativas"],
+        [BRL(MATRICULAS.length ? MATRICULAS.reduce((s, m) => s + +m.valor_mensalidade, 0) / MATRICULAS.length : 0), "Ticket médio"]])}
+      ${atalho("financeiro", "verde", IC.dinheiro, "Financeiro", "Resumo do período", [
+        [BRL(recebido), "Recebido"], [BRL(aReceber), "A receber"], [BRL(atrasado), "Em atraso"]])}
+    </div>`;
+
+  /* ---- ranking de cursos, por course_slug quando existir ---- */
   const cont = {};
-  LEADS.forEach(l => (cont[l.curso] = (cont[l.curso] || 0) + 1));
-  const top = Object.entries(cont).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  LEADS.forEach(l => {
+    const chave = l.curso || "—";
+    cont[chave] = (cont[chave] || 0) + 1;
+  });
+  const top = Object.entries(cont).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const maxC = top.length ? top[0][1] : 1;
   $("#rankCursos").innerHTML = top.length
-    ? top.map(([nome, n]) => `<div class="rank-item"><span>${esc(nome)}</span><b>${n}</b>
-        <div class="rank-bar"><i style="width:${n / maxC * 100}%"></i></div></div>`).join("")
+    ? top.map(([nome, n], i) => `<div class="rank-item">
+        <span class="rank-pos">${i + 1}</span>
+        <div class="rank-corpo">
+          <div class="rank-linha"><b>${esc(nome)}</b><span>${n} lead${n === 1 ? "" : "s"}</span></div>
+          <div class="rank-bar"><i style="width:${n / maxC * 100}%"></i></div>
+        </div>
+      </div>`).join("")
     : `<p class="vaziomsg">Sem leads ainda.</p>`;
 
-  /* próximos vencimentos */
+  /* ---- contas a vencer ---- */
   const lim = new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10);
   const prox = LANCAMENTOS.filter(x => x.status === "pendente" && x.vencimento <= lim)
-    .sort((a, b) => a.vencimento.localeCompare(b.vencimento)).slice(0, 12);
-  $("#proxVencimentos").innerHTML = prox.length ? `
-    <div class="tabela-wrap"><table class="tabela"><thead><tr>
-      <th>Vencimento</th><th>Descrição</th><th>Aluno</th><th>Valor</th><th>Situação</th><th></th></tr></thead>
-      <tbody>${prox.map(x => `<tr class="linha">
-        <td class="num c-quando" data-l="Vencimento">${dataBR(x.vencimento)}</td>
-        <td class="c-titulo" data-l="Descrição">${esc(x.descricao)}</td>
-        <td class="sub c-sub" data-l="Aluno">${esc(x.aluno_nome || "—")}</td>
-        <td class="num ${x.tipo} c-valor" data-l="Valor">${x.tipo === "saida" ? "−" : ""}${BRL(x.valor)}</td>
-        <td class="c-status" data-l="Situação"><span class="badge b-${x.status_efetivo}">${x.status_efetivo}</span></td>
-        <td class="c-acoes" data-l="Ações"><button class="btn-min" data-pagar="${x.id}">Marcar pago</button></td>
-      </tr>`).join("")}</tbody></table></div>`
+    .sort((a, b) => a.vencimento.localeCompare(b.vencimento)).slice(0, 8);
+  $("#proxVencimentos").innerHTML = prox.length
+    ? `<div class="lista">${prox.map(x => cartaoLancamento(x, true)).join("")}</div>`
     : `<p class="vaziomsg">Nada vencendo nos próximos 15 dias.</p>`;
 }
-
-const kpi = (k, v, d, cls = "") =>
-  `<div class="kpi ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
 
 /* ============================================================
    LEADS
@@ -193,38 +331,81 @@ function leadsFiltrados() {
 
 function renderLeads() {
   const list = leadsFiltrados();
+
+  /* ---- cartão do topo ---- */
+  const serie = serieDias(LEADS, "created_at", 14);
+  $("#heroLeads").innerHTML = hero(
+    "h-roxo", LEADS.length.toLocaleString("pt-BR"), "Leads no total",
+    variacao(serie), sparkline(serie.map(d => d.n)));
+
+  /* ---- quatro números ---- */
+  const cont = (st) => LEADS.filter(l => l.status === st).length;
+  const novos7 = LEADS.filter(l => new Date(l.created_at) >= Date.now() - 7 * 864e5).length;
+  $("#tilesLeads").innerHTML = `<div class="grade-4">
+    ${tile(IC.novo,    novos7,               "Novos (7 dias)", "roxo")}
+    ${tile(IC.fone,    cont("contatado"),    "Em contato",     "dourado")}
+    ${tile(IC.ok,      cont("negociacao"),   "Negociação",     "azul")}
+    ${tile(IC.capelo,  cont("matriculado"),  "Matriculados",   "verde")}
+  </div>`;
+
+  /* ---- funil: só etapas reais do banco ---- */
+  const etapas = [
+    ["Leads no total", LEADS.length],
+    ["Contatados",     LEADS.length - cont("novo")],
+    ["Em negociação",  cont("negociacao") + cont("matriculado")],
+    ["Matriculados",   cont("matriculado")],
+  ];
+  const topo = Math.max(1, etapas[0][1]);
+  $("#funilLeads").innerHTML = `<div class="funil">${etapas.map(([r, v], i) => {
+    const larg = Math.max(14, v / topo * 100);
+    const antes = i ? etapas[i - 1][1] : 0;
+    const taxa = i && antes ? (v / antes * 100).toFixed(0) + "%" : "";
+    return `<div class="funil-etapa">
+      <div class="funil-barra" style="width:${larg}%;opacity:${1 - i * .17}"></div>
+      <div class="funil-txt"><b>${v.toLocaleString("pt-BR")}</b><span>${r}</span></div>
+      ${taxa ? `<span class="funil-taxa">${taxa}</span>` : ""}
+    </div>`;
+  }).join("")}</div>`;
+
+  /* ---- lista ---- */
   $("#leadsVazio").hidden = !!list.length;
-  $("#tabelaLeads").innerHTML = !list.length ? "" : `
-    <thead><tr>
-      <th>Quando</th><th>Nome</th><th>Contato</th><th>Curso</th>
-      <th>Idade</th><th>Cidade</th><th>Origem</th><th>Status</th><th>Ações</th>
-    </tr></thead>
-    <tbody>${list.map(l => `<tr class="linha">
-      <td class="num sub c-quando" data-l="Quando">${dataHoraBR(l.created_at)}</td>
-      <td class="c-titulo" data-l="Nome"><div class="nome">${esc(l.nome)}</div></td>
-      <td data-l="Contato">
-        <div class="num">${esc(formatarTel(l.telefone))}</div>
-        <div class="sub">${esc(l.email)}</div>
-      </td>
-      <td class="c-sub" data-l="Curso">${esc(l.curso)}<div class="sub">${esc(l.modalidade || "")}</div></td>
-      <td class="num" data-l="Idade">${l.idade ?? "—"}</td>
-      <td class="sub" data-l="Cidade">${esc(l.cidade || "—")}</td>
-      <td class="sub" data-l="Origem">${esc(l.origem || "—")}${l.utm_campaign ? `<div class="sub">${esc(l.utm_campaign)}</div>` : ""}</td>
-      <td class="c-status" data-l="Status">
-        <select class="status-sel" data-status="${l.id}">
-          ${["novo","contatado","negociacao","matriculado","perdido"].map(s =>
-            `<option value="${s}" ${l.status === s ? "selected" : ""}>${rotulo(s)}</option>`).join("")}
-        </select>
-      </td>
-      <td class="c-acoes" data-l="Ações"><div class="acoes">
-        <a class="btn-min wa-btn" target="_blank" rel="noopener"
-           href="https://wa.me/55${l.telefone}?text=${encodeURIComponent(
-             `Olá ${l.nome.split(" ")[0]}! Aqui é do Instituto Alfa 👋 Vi que você se interessou por *${l.curso}*. Posso te passar as informações?`)}">WhatsApp</a>
-        <button class="btn-min" data-ver="${l.id}">Notas</button>
-        <button class="btn-min primario" data-matricular="${l.id}">Matricular</button>
-      </div></td>
-    </tr>`).join("")}</tbody>`;
+  $("#tabelaLeads").innerHTML = list.map(cartaoLead).join("");
 }
+
+/** Um lead = um cartão. Nome, curso, contato, status e ações. */
+function cartaoLead(l) {
+  const wa = `https://wa.me/55${l.telefone}?text=` + encodeURIComponent(
+    `Olá ${l.nome.split(" ")[0]}! Aqui é do Instituto Alfa. Vi que você se interessou por *${l.curso}*. Posso te passar as informações?`);
+  return `<article class="item">
+    <div class="item-topo">
+      <span class="avatar">${esc(iniciais(l.nome))}</span>
+      <div class="item-id">
+        <b>${esc(l.nome)}</b>
+        <small>${esc(l.curso || "—")}</small>
+      </div>
+      <span class="badge b-${l.status}">${rotulo(l.status)}</span>
+    </div>
+
+    <div class="item-dados">
+      <span>${esc(formatarTel(l.telefone))}</span>
+      ${l.cidade ? `<span>${esc(l.cidade)}</span>` : ""}
+      ${l.origem ? `<span>${esc(l.origem)}</span>` : ""}
+      <span class="quando">${dataHoraBR(l.created_at)}</span>
+    </div>
+
+    <div class="item-acoes">
+      <a class="btn-min wa-btn" target="_blank" rel="noopener" href="${wa}">WhatsApp</a>
+      <select class="status-sel" data-status="${l.id}" aria-label="Status do lead">
+        ${["novo","contatado","negociacao","matriculado","perdido"].map(st =>
+          `<option value="${st}" ${l.status === st ? "selected" : ""}>${rotulo(st)}</option>`).join("")}
+      </select>
+      <button class="btn-min" data-ver="${l.id}">Notas</button>
+      <button class="btn-min primario" data-matricular="${l.id}">Matricular</button>
+    </div>
+  </article>`;
+}
+
+const iniciais = (n) => String(n || "?").trim().split(/\s+/).slice(0, 2).map(x => x[0]).join("").toUpperCase();
 
 const rotulo = (s) => ({ novo: "Novo", contatado: "Contatado", negociacao: "Negociação",
   matriculado: "Matriculado", perdido: "Perdido" }[s] || s);
@@ -262,32 +443,58 @@ function renderMatriculas() {
   const list = MATRICULAS.filter(m => !q ||
     [m.aluno_nome, m.curso].some(v => String(v || "").toLowerCase().includes(q)));
 
+  /* ---- topo ---- */
+  const serie = serieDias(MATRICULAS, "created_at", 7);
+  $("#heroMat").innerHTML = hero(
+    "h-azul", MATRICULAS.length.toLocaleString("pt-BR"), "Matrículas no total",
+    variacao(serieDias(MATRICULAS, "created_at", 14)), barras(serie));
+
+  const novas7 = MATRICULAS.filter(m => new Date(m.created_at) >= Date.now() - 7 * 864e5).length;
+  const ticket = MATRICULAS.length
+    ? MATRICULAS.reduce((s, m) => s + +m.valor_mensalidade, 0) / MATRICULAS.length : 0;
+  const conv = LEADS.length ? (LEADS.filter(l => l.status === "matriculado").length / LEADS.length * 100) : 0;
+
+  $("#tilesMat").innerHTML = `<div class="grade-3">
+    ${tile(IC.novo,     novas7,                                   "Novas (7 dias)", "azul")}
+    ${tile(IC.dinheiro, BRL(ticket),                              "Ticket médio",   "verde")}
+    ${tile(IC.grafico,  conv.toFixed(1).replace(".", ",") + "%",  "Conversão",      "dourado")}
+  </div>`;
+
+  /* ---- lista ---- */
   $("#matVazio").hidden = !!list.length;
-  $("#tabelaMat").innerHTML = !list.length ? "" : `
-    <thead><tr><th>Aluno</th><th>Curso</th><th>Início</th><th>Matrícula</th>
-      <th>Mensalidade</th><th>Parcelas</th><th>Pago / Total</th><th>Status</th><th></th></tr></thead>
-    <tbody>${list.map(m => {
-      const dele = LANCAMENTOS.filter(x => x.matricula_id === m.id);
-      const total = dele.reduce((s, x) => s + +x.valor, 0);
-      const pago = dele.filter(x => x.status === "pago").reduce((s, x) => s + +x.valor, 0);
-      const atras = dele.some(x => x.status_efetivo === "atrasado");
-      return `<tr class="linha">
-        <td class="c-titulo" data-l="Aluno"><div class="nome">${esc(m.aluno_nome)}</div>
-            <div class="sub">${esc(formatarTel(m.aluno_telefone) || "")}</div></td>
-        <td class="c-sub" data-l="Curso">${esc(m.curso)}<div class="sub">${esc(m.cidade || m.modalidade || "")}</div></td>
-        <td class="num" data-l="Início">${dataBR(m.data_inicio)}</td>
-        <td class="num" data-l="Matrícula">${BRL(m.valor_matricula)}</td>
-        <td class="num" data-l="Mensalidade">${BRL(m.valor_mensalidade)}</td>
-        <td class="num" data-l="Parcelas">${m.parcelas}x</td>
-        <td class="num" data-l="Pago / Total">${BRL(pago)} <span class="sub">/ ${BRL(total)}</span>
-            ${atras ? ` <span class="badge b-atrasado">atraso</span>` : ""}</td>
-        <td class="c-status" data-l="Status"><span class="badge b-${m.status}">${m.status}</span></td>
-        <td class="c-acoes" data-l="Ações"><div class="acoes">
-          <button class="btn-min" data-parcelas="${m.id}">Parcelas</button>
-          <button class="btn-min perigo" data-cancelar-mat="${m.id}">Cancelar</button>
-        </div></td>
-      </tr>`;
-    }).join("")}</tbody>`;
+  $("#tabelaMat").innerHTML = list.map(m => {
+    const dele = LANCAMENTOS.filter(x => x.matricula_id === m.id);
+    const total = dele.reduce((s, x) => s + +x.valor, 0);
+    const pago = dele.filter(x => x.status === "pago").reduce((s, x) => s + +x.valor, 0);
+    const atras = dele.some(x => x.status_efetivo === "atrasado");
+    const prog = total ? Math.min(100, pago / total * 100) : 0;
+    return `<article class="item">
+      <div class="item-topo">
+        <span class="avatar azul">${esc(iniciais(m.aluno_nome))}</span>
+        <div class="item-id">
+          <b>${esc(m.aluno_nome)}</b>
+          <small>${esc(m.curso)}</small>
+        </div>
+        <span class="badge b-${m.status}">${m.status}</span>
+      </div>
+
+      <div class="item-dados">
+        <span>Início ${dataBR(m.data_inicio)}</span>
+        <span>${m.parcelas}x de ${BRL(m.valor_mensalidade)}</span>
+        ${atras ? `<span class="alerta">em atraso</span>` : ""}
+      </div>
+
+      <div class="progresso" title="${BRL(pago)} de ${BRL(total)}">
+        <i style="width:${prog}%" class="${atras ? "atras" : ""}"></i>
+      </div>
+      <div class="progresso-txt"><span>${BRL(pago)} pagos</span><span>de ${BRL(total)}</span></div>
+
+      <div class="item-acoes">
+        <button class="btn-min" data-parcelas="${m.id}">Parcelas</button>
+        <button class="btn-min perigo" data-cancelar-mat="${m.id}">Cancelar</button>
+      </div>
+    </article>`;
+  }).join("");
 }
 $("#buscaMat").addEventListener("input", renderMatriculas);
 
@@ -310,37 +517,63 @@ function renderFinanceiro() {
   const list = finFiltrado();
   const ent = list.filter(x => x.tipo === "entrada");
   const sai = list.filter(x => x.tipo === "saida");
-  const recebido = ent.filter(x => x.status === "pago").reduce((s, x) => s + +x.valor, 0);
+  const recebido  = ent.filter(x => x.status === "pago").reduce((s, x) => s + +x.valor, 0);
   const pagoSaida = sai.filter(x => x.status === "pago").reduce((s, x) => s + +x.valor, 0);
-  const pendente = ent.filter(x => x.status_efetivo === "pendente").reduce((s, x) => s + +x.valor, 0);
-  const atrasado = ent.filter(x => x.status_efetivo === "atrasado").reduce((s, x) => s + +x.valor, 0);
+  const pendente  = ent.filter(x => x.status_efetivo === "pendente").reduce((s, x) => s + +x.valor, 0);
+  const atrasado  = ent.filter(x => x.status_efetivo === "atrasado").reduce((s, x) => s + +x.valor, 0);
+  const lucro     = recebido - pagoSaida;
+  const margem    = recebido ? (lucro / recebido * 100) : 0;
 
-  $("#kpisFin").innerHTML = `
-    ${kpi("Entradas recebidas", BRL(recebido), `${ent.filter(x => x.status === "pago").length} lançamentos`, "ok")}
-    ${kpi("Saídas pagas", BRL(pagoSaida), `${sai.filter(x => x.status === "pago").length} lançamentos`, "bad")}
-    ${kpi("Saldo do filtro", BRL(recebido - pagoSaida), "recebido − pago", recebido - pagoSaida >= 0 ? "ok" : "bad")}
-    ${kpi("A receber", BRL(pendente), "dentro do prazo", "warn")}
-    ${kpi("Inadimplência", BRL(atrasado), `${ent.filter(x => x.status_efetivo === "atrasado").length} vencidos`, atrasado ? "bad" : "")}`;
+  /* ---- topo: entradas recebidas por dia ---- */
+  const pagos = ent.filter(x => x.pago_em);
+  const serie = serieDias(pagos, "pago_em", 14);
+  $("#heroFin").innerHTML = hero(
+    "h-verde", BRL(recebido), "Recebido no filtro",
+    variacao(serie), sparkline(serie.map(d => d.n)));
+
+  $("#kpisFin").innerHTML = `<div class="grade-3">
+    ${tile(IC.dinheiro, BRL(lucro),                                "Saldo do período", lucro >= 0 ? "verde" : "vermelho")}
+    ${tile(IC.grafico,  margem.toFixed(1).replace(".", ",") + "%", "Margem",           "dourado")}
+    ${tile(IC.alerta,   BRL(atrasado),                             "Em atraso",        atrasado ? "vermelho" : "")}
+  </div>`;
+
+  $("#resumoFin").innerHTML = `<div class="resumo">
+    <div><span>Entradas recebidas</span><b class="v-ok">${BRL(recebido)}</b></div>
+    <div><span>Saídas pagas</span><b class="v-bad">${BRL(pagoSaida)}</b></div>
+    <div><span>Saldo</span><b class="${lucro >= 0 ? "v-ok" : "v-bad"}">${BRL(lucro)}</b></div>
+    <div><span>A receber (no prazo)</span><b class="v-warn">${BRL(pendente)}</b></div>
+    <div><span>Inadimplência</span><b class="${atrasado ? "v-bad" : ""}">${BRL(atrasado)}</b></div>
+  </div>`;
 
   $("#finVazio").hidden = !!list.length;
-  $("#tabelaFin").innerHTML = !list.length ? "" : `
-    <thead><tr><th>Vencimento</th><th>Descrição</th><th>Aluno</th><th>Categoria</th>
-      <th>Valor</th><th>Situação</th><th>Pago em</th><th></th></tr></thead>
-    <tbody>${list.map(x => `<tr class="linha">
-      <td class="num c-quando" data-l="Vencimento">${dataBR(x.vencimento)}</td>
-      <td class="c-titulo" data-l="Descrição">${esc(x.descricao)}</td>
-      <td class="sub c-sub" data-l="Aluno">${esc(x.aluno_nome || "—")}</td>
-      <td class="sub" data-l="Categoria">${esc(x.categoria || "—")}</td>
-      <td class="num ${x.tipo} c-valor" data-l="Valor">${x.tipo === "saida" ? "−" : "+"}${BRL(x.valor)}</td>
-      <td class="c-status" data-l="Situação"><span class="badge b-${x.status_efetivo}">${x.status_efetivo}</span></td>
-      <td class="num sub" data-l="Pago em">${x.pago_em ? dataBR(x.pago_em) : "—"}</td>
-      <td class="c-acoes" data-l="Ações"><div class="acoes">
-        ${x.status === "pago"
-          ? `<button class="btn-min" data-desfazer="${x.id}">Desfazer</button>`
-          : `<button class="btn-min primario" data-pagar="${x.id}">Marcar pago</button>`}
-        <button class="btn-min perigo" data-apagar-lanc="${x.id}">Excluir</button>
-      </div></td>
-    </tr>`).join("")}</tbody>`;
+  $("#tabelaFin").innerHTML = list.map(x => cartaoLancamento(x, false)).join("");
+}
+
+/** Um lançamento = um cartão. `curto` esconde as ações de excluir. */
+function cartaoLancamento(x, curto) {
+  return `<article class="item lanc">
+    <div class="item-topo">
+      <span class="avatar ${x.tipo === "saida" ? "vermelho" : "verde"}">${x.tipo === "saida" ? "−" : "+"}</span>
+      <div class="item-id">
+        <b>${esc(x.descricao)}</b>
+        <small>${esc(x.aluno_nome || x.categoria || "—")}</small>
+      </div>
+      <div class="lanc-valor ${x.tipo}">${x.tipo === "saida" ? "−" : "+"}${BRL(x.valor)}</div>
+    </div>
+
+    <div class="item-dados">
+      <span>Vence ${dataBR(x.vencimento)}</span>
+      ${x.pago_em ? `<span>Pago ${dataBR(x.pago_em)}</span>` : ""}
+      <span class="badge b-${x.status_efetivo}">${x.status_efetivo}</span>
+    </div>
+
+    <div class="item-acoes">
+      ${x.status === "pago"
+        ? `<button class="btn-min" data-desfazer="${x.id}">Desfazer</button>`
+        : `<button class="btn-min primario" data-pagar="${x.id}">Marcar pago</button>`}
+      ${curto ? "" : `<button class="btn-min perigo" data-apagar-lanc="${x.id}">Excluir</button>`}
+    </div>
+  </article>`;
 }
 ["filtroFinStatus", "filtroFinTipo", "filtroFinMes"].forEach(id =>
   $("#" + id).addEventListener("input", renderFinanceiro));
