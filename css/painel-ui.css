@@ -359,3 +359,21 @@ button, a, select { -webkit-tap-highlight-color: transparent; }
 
 /* estado vazio */
 .vaziomsg { text-align: center; color: var(--muted); padding: 28px 16px; }
+
+/* ------------------------------------------------------------
+   13. Avisos de coerência de dados
+------------------------------------------------------------ */
+.aviso-linha {
+  margin-top: 9px;
+  font-size: .74rem;
+  color: var(--vermelho);
+  background: rgba(224,87,79,.09);
+  border: 1px solid rgba(224,87,79,.28);
+  border-radius: 9px;
+  padding: 7px 10px;
+}
+.nota-linha { color: var(--muted-2); font-size: .76rem; margin: -4px 0 14px; }
+
+/* matrícula cancelada continua na lista, mas apagada */
+.item.apagado { opacity: .55; }
+.item.apagado .item-id b { text-decoration: line-through; }
