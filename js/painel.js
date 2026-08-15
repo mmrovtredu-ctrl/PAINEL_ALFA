@@ -123,6 +123,50 @@ async function carregarTudo() {
 }
 
 /* ============================================================
+   REGRAS DE CONTAGEM
+   Uma matrícula cancelada NÃO é matrícula. Tudo que conta
+   matrícula, ticket ou conversão passa por aqui — assim a
+   regra não se perde espalhada por quatro telas.
+   ============================================================ */
+
+/** Só as matrículas que valem. */
+const ativas = () => MATRICULAS.filter(m => m.status === "ativa");
+
+/** Matrículas canceladas — contadas à parte, nunca somadas ao total. */
+const canceladas = () => MATRICULAS.filter(m => m.status === "cancelada");
+
+/**
+ * Um lead conta como matriculado quando existe matrícula ATIVA ligada a ele.
+ * Se ele nunca foi vinculado a nenhuma matrícula (matrícula avulsa, cadastro
+ * antigo), vale o status marcado à mão no painel.
+ */
+function leadMatriculado(l) {
+  const dele = MATRICULAS.filter(m => m.lead_id === l.id);
+  if (dele.length) return dele.some(m => m.status === "ativa");
+  return l.status === "matriculado";
+}
+
+/** Lead marcado como matriculado, mas cuja matrícula foi cancelada. */
+function leadDesmatriculado(l) {
+  const dele = MATRICULAS.filter(m => m.lead_id === l.id);
+  return l.status === "matriculado" && dele.length > 0 && !dele.some(m => m.status === "ativa");
+}
+
+/** Ticket médio das matrículas ativas. Cancelada não entra na média. */
+function ticketMedio() {
+  const a = ativas();
+  return a.length ? a.reduce((s, m) => s + +m.valor_mensalidade, 0) / a.length : 0;
+}
+
+/** Conversão: leads que viraram aluno de verdade ÷ total de leads. */
+function taxaConversao() {
+  return LEADS.length ? (LEADS.filter(leadMatriculado).length / LEADS.length * 100) : 0;
+}
+
+/** Lançamento cancelado não é dinheiro. Fica fora de qualquer soma. */
+const vivos = (arr) => arr.filter(x => x.status !== "cancelado");
+
+/* ============================================================
    PEÇAS DA INTERFACE
    Tudo desenhado a partir dos dados reais. Nada de número fixo.
    ============================================================ */
@@ -227,15 +271,16 @@ function renderDash() {
   const d7  = Date.now() - 7 * 864e5;
   const novos30 = LEADS.filter(l => new Date(l.created_at) >= d30).length;
   const novos7  = LEADS.filter(l => new Date(l.created_at) >= d7).length;
-  const matric  = LEADS.filter(l => l.status === "matriculado").length;
-  const conv    = LEADS.length ? (matric / LEADS.length * 100) : 0;
-  const ativas  = MATRICULAS.filter(m => m.status === "ativa").length;
+  const conv     = taxaConversao();
+  const nAtivas  = ativas().length;
+  const nCancel  = canceladas().length;
 
-  const recebido = LANCAMENTOS.filter(x => x.tipo === "entrada" && x.status === "pago")
+  const fin      = vivos(LANCAMENTOS);
+  const recebido = fin.filter(x => x.tipo === "entrada" && x.status === "pago")
     .reduce((s, x) => s + +x.valor, 0);
-  const aReceber = LANCAMENTOS.filter(x => x.tipo === "entrada" && x.status_efetivo === "pendente")
+  const aReceber = fin.filter(x => x.tipo === "entrada" && x.status_efetivo === "pendente")
     .reduce((s, x) => s + +x.valor, 0);
-  const atrasado = LANCAMENTOS.filter(x => x.status_efetivo === "atrasado" && x.tipo === "entrada")
+  const atrasado = fin.filter(x => x.status_efetivo === "atrasado" && x.tipo === "entrada")
     .reduce((s, x) => s + +x.valor, 0);
 
   const serie14 = serieDias(LEADS, "created_at", 14);
@@ -249,7 +294,7 @@ function renderDash() {
       </div>
       <div class="grade-4">
         ${tile(IC.pessoas,  LEADS.length,      "Leads no total",   "roxo")}
-        ${tile(IC.capelo,   ativas,            "Matrículas ativas","azul")}
+        ${tile(IC.capelo,   nAtivas,           "Matrículas ativas","azul")}
         ${tile(IC.dinheiro, BRL(recebido),     "Recebido",         "verde")}
         ${tile(IC.grafico,  conv.toFixed(1).replace(".", ",") + "%", "Conversão", "dourado")}
       </div>
@@ -278,8 +323,7 @@ function renderDash() {
         [LEADS.length, "Total"], [novos7, "Novos (7 dias)"],
         [conv.toFixed(1).replace(".", ",") + "%", "Conversão"]])}
       ${atalho("matriculas", "azul", IC.capelo, "Matrículas", "Alunos em curso", [
-        [MATRICULAS.length, "Total"], [ativas, "Ativas"],
-        [BRL(MATRICULAS.length ? MATRICULAS.reduce((s, m) => s + +m.valor_mensalidade, 0) / MATRICULAS.length : 0), "Ticket médio"]])}
+        [nAtivas, "Ativas"], [nCancel, "Canceladas"], [BRL(ticketMedio()), "Ticket médio"]])}
       ${atalho("financeiro", "verde", IC.dinheiro, "Financeiro", "Resumo do período", [
         [BRL(recebido), "Recebido"], [BRL(aReceber), "A receber"], [BRL(atrasado), "Em atraso"]])}
     </div>`;
@@ -304,7 +348,7 @@ function renderDash() {
 
   /* ---- contas a vencer ---- */
   const lim = new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10);
-  const prox = LANCAMENTOS.filter(x => x.status === "pendente" && x.vencimento <= lim)
+  const prox = vivos(LANCAMENTOS).filter(x => x.status === "pendente" && x.vencimento <= lim)
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento)).slice(0, 8);
   $("#proxVencimentos").innerHTML = prox.length
     ? `<div class="lista">${prox.map(x => cartaoLancamento(x, true)).join("")}</div>`
@@ -340,20 +384,21 @@ function renderLeads() {
 
   /* ---- quatro números ---- */
   const cont = (st) => LEADS.filter(l => l.status === st).length;
+  const nMatric = LEADS.filter(leadMatriculado).length;
   const novos7 = LEADS.filter(l => new Date(l.created_at) >= Date.now() - 7 * 864e5).length;
   $("#tilesLeads").innerHTML = `<div class="grade-4">
     ${tile(IC.novo,    novos7,               "Novos (7 dias)", "roxo")}
     ${tile(IC.fone,    cont("contatado"),    "Em contato",     "dourado")}
     ${tile(IC.ok,      cont("negociacao"),   "Negociação",     "azul")}
-    ${tile(IC.capelo,  cont("matriculado"),  "Matriculados",   "verde")}
+    ${tile(IC.capelo,  nMatric,              "Matriculados",   "verde")}
   </div>`;
 
   /* ---- funil: só etapas reais do banco ---- */
   const etapas = [
     ["Leads no total", LEADS.length],
     ["Contatados",     LEADS.length - cont("novo")],
-    ["Em negociação",  cont("negociacao") + cont("matriculado")],
-    ["Matriculados",   cont("matriculado")],
+    ["Em negociação",  cont("negociacao") + nMatric],
+    ["Matriculados",   nMatric],
   ];
   const topo = Math.max(1, etapas[0][1]);
   $("#funilLeads").innerHTML = `<div class="funil">${etapas.map(([r, v], i) => {
@@ -385,6 +430,7 @@ function cartaoLead(l) {
       </div>
       <span class="badge b-${l.status}">${rotulo(l.status)}</span>
     </div>
+    ${leadDesmatriculado(l) ? `<p class="aviso-linha">Marcado como matriculado, mas a matrícula foi cancelada.</p>` : ""}
 
     <div class="item-dados">
       <span>${esc(formatarTel(l.telefone))}</span>
@@ -440,35 +486,38 @@ $("#tabelaLeads").addEventListener("change", async (e) => {
    ============================================================ */
 function renderMatriculas() {
   const q = $("#buscaMat").value.trim().toLowerCase();
-  const list = MATRICULAS.filter(m => !q ||
-    [m.aluno_nome, m.curso].some(v => String(v || "").toLowerCase().includes(q)));
+  const list = MATRICULAS
+    .filter(m => !q || [m.aluno_nome, m.curso].some(v => String(v || "").toLowerCase().includes(q)))
+    /* cancelada continua visível, mas vai para o fim da lista */
+    .sort((a, b) => (a.status === "cancelada" ? 1 : 0) - (b.status === "cancelada" ? 1 : 0));
 
   /* ---- topo ---- */
-  const serie = serieDias(MATRICULAS, "created_at", 7);
+  const ativ = ativas();
+  const nCancel = canceladas().length;
+  const serie = serieDias(ativ, "created_at", 7);
   $("#heroMat").innerHTML = hero(
-    "h-azul", MATRICULAS.length.toLocaleString("pt-BR"), "Matrículas no total",
-    variacao(serieDias(MATRICULAS, "created_at", 14)), barras(serie));
+    "h-azul", ativ.length.toLocaleString("pt-BR"), "Matrículas ativas",
+    variacao(serieDias(ativ, "created_at", 14)), barras(serie));
 
-  const novas7 = MATRICULAS.filter(m => new Date(m.created_at) >= Date.now() - 7 * 864e5).length;
-  const ticket = MATRICULAS.length
-    ? MATRICULAS.reduce((s, m) => s + +m.valor_mensalidade, 0) / MATRICULAS.length : 0;
-  const conv = LEADS.length ? (LEADS.filter(l => l.status === "matriculado").length / LEADS.length * 100) : 0;
+  const novas7 = ativ.filter(m => new Date(m.created_at) >= Date.now() - 7 * 864e5).length;
+  const conv = taxaConversao();
 
   $("#tilesMat").innerHTML = `<div class="grade-3">
     ${tile(IC.novo,     novas7,                                   "Novas (7 dias)", "azul")}
-    ${tile(IC.dinheiro, BRL(ticket),                              "Ticket médio",   "verde")}
+    ${tile(IC.dinheiro, BRL(ticketMedio()),                       "Ticket médio",   "verde")}
     ${tile(IC.grafico,  conv.toFixed(1).replace(".", ",") + "%",  "Conversão",      "dourado")}
-  </div>`;
+  </div>`
+    + (nCancel ? `<p class="nota-linha">${nCancel} matrícula${nCancel > 1 ? "s" : ""} cancelada${nCancel > 1 ? "s" : ""} — fora de todas as contas acima.</p>` : "");
 
   /* ---- lista ---- */
   $("#matVazio").hidden = !!list.length;
   $("#tabelaMat").innerHTML = list.map(m => {
-    const dele = LANCAMENTOS.filter(x => x.matricula_id === m.id);
+    const dele = vivos(LANCAMENTOS).filter(x => x.matricula_id === m.id);
     const total = dele.reduce((s, x) => s + +x.valor, 0);
     const pago = dele.filter(x => x.status === "pago").reduce((s, x) => s + +x.valor, 0);
     const atras = dele.some(x => x.status_efetivo === "atrasado");
     const prog = total ? Math.min(100, pago / total * 100) : 0;
-    return `<article class="item">
+    return `<article class="item ${m.status === "cancelada" ? "apagado" : ""}">
       <div class="item-topo">
         <span class="avatar azul">${esc(iniciais(m.aluno_nome))}</span>
         <div class="item-id">
@@ -506,7 +555,11 @@ function finFiltrado() {
   const tp = $("#filtroFinTipo").value;
   const mes = $("#filtroFinMes").value;
   return LANCAMENTOS.filter(x => {
-    if (st && x.status_efetivo !== st) return false;
+    /* lançamento cancelado (parcela de matrícula cancelada) fica de fora,
+       a menos que você peça para ver justamente esses */
+    if (st === "cancelado") { if (x.status !== "cancelado") return false; }
+    else if (x.status === "cancelado") return false;
+    if (st && st !== "cancelado" && x.status_efetivo !== st) return false;
     if (tp && x.tipo !== tp) return false;
     if (mes && !x.vencimento.startsWith(mes)) return false;
     return true;
@@ -619,7 +672,15 @@ document.addEventListener("click", async (e) => {
     const id = cm.getAttribute("data-cancelar-mat");
     await sb.from("matriculas").update({ status: "cancelada" }).eq("id", id);
     await sb.from("lancamentos").update({ status: "cancelado" }).eq("matricula_id", id).eq("status", "pendente");
-    toast("Matrícula cancelada."); return carregarTudo();
+
+    /* O status do lead é anotação sua — eu não mexo nele sozinho.
+       Mas aviso, porque senão ele fica "matriculado" para sempre. */
+    const mat = MATRICULAS.find(x => String(x.id) === String(id));
+    const lead = mat && LEADS.find(l => String(l.id) === String(mat.lead_id));
+    toast(lead && lead.status === "matriculado"
+      ? "Matrícula cancelada. Ajuste o status do lead se ele não vai voltar."
+      : "Matrícula cancelada.");
+    return carregarTudo();
   }
 
   /* ver parcelas */
