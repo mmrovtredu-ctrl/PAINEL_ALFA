@@ -159,13 +159,13 @@ function renderDash() {
   $("#proxVencimentos").innerHTML = prox.length ? `
     <div class="tabela-wrap"><table class="tabela"><thead><tr>
       <th>Vencimento</th><th>Descrição</th><th>Aluno</th><th>Valor</th><th>Situação</th><th></th></tr></thead>
-      <tbody>${prox.map(x => `<tr>
-        <td class="num">${dataBR(x.vencimento)}</td>
-        <td>${esc(x.descricao)}</td>
-        <td class="sub">${esc(x.aluno_nome || "—")}</td>
-        <td class="num ${x.tipo}">${x.tipo === "saida" ? "−" : ""}${BRL(x.valor)}</td>
-        <td><span class="badge b-${x.status_efetivo}">${x.status_efetivo}</span></td>
-        <td><button class="btn-min" data-pagar="${x.id}">Marcar pago</button></td>
+      <tbody>${prox.map(x => `<tr class="linha">
+        <td class="num c-quando" data-l="Vencimento">${dataBR(x.vencimento)}</td>
+        <td class="c-titulo" data-l="Descrição">${esc(x.descricao)}</td>
+        <td class="sub c-sub" data-l="Aluno">${esc(x.aluno_nome || "—")}</td>
+        <td class="num ${x.tipo} c-valor" data-l="Valor">${x.tipo === "saida" ? "−" : ""}${BRL(x.valor)}</td>
+        <td class="c-status" data-l="Situação"><span class="badge b-${x.status_efetivo}">${x.status_efetivo}</span></td>
+        <td class="c-acoes" data-l="Ações"><button class="btn-min" data-pagar="${x.id}">Marcar pago</button></td>
       </tr>`).join("")}</tbody></table></div>`
     : `<p class="vaziomsg">Nada vencendo nos próximos 15 dias.</p>`;
 }
@@ -199,25 +199,25 @@ function renderLeads() {
       <th>Quando</th><th>Nome</th><th>Contato</th><th>Curso</th>
       <th>Idade</th><th>Cidade</th><th>Origem</th><th>Status</th><th>Ações</th>
     </tr></thead>
-    <tbody>${list.map(l => `<tr>
-      <td class="num sub">${dataHoraBR(l.created_at)}</td>
-      <td><div class="nome">${esc(l.nome)}</div></td>
-      <td>
+    <tbody>${list.map(l => `<tr class="linha">
+      <td class="num sub c-quando" data-l="Quando">${dataHoraBR(l.created_at)}</td>
+      <td class="c-titulo" data-l="Nome"><div class="nome">${esc(l.nome)}</div></td>
+      <td data-l="Contato">
         <div class="num">${esc(formatarTel(l.telefone))}</div>
         <div class="sub">${esc(l.email)}</div>
       </td>
-      <td>${esc(l.curso)}<div class="sub">${esc(l.modalidade || "")}</div></td>
-      <td class="num">${l.idade ?? "—"}</td>
-      <td class="sub">${esc(l.cidade || "—")}</td>
-      <td class="sub">${esc(l.origem || "—")}${l.utm_campaign ? `<div class="sub">${esc(l.utm_campaign)}</div>` : ""}</td>
-      <td>
+      <td class="c-sub" data-l="Curso">${esc(l.curso)}<div class="sub">${esc(l.modalidade || "")}</div></td>
+      <td class="num" data-l="Idade">${l.idade ?? "—"}</td>
+      <td class="sub" data-l="Cidade">${esc(l.cidade || "—")}</td>
+      <td class="sub" data-l="Origem">${esc(l.origem || "—")}${l.utm_campaign ? `<div class="sub">${esc(l.utm_campaign)}</div>` : ""}</td>
+      <td class="c-status" data-l="Status">
         <select class="status-sel" data-status="${l.id}">
           ${["novo","contatado","negociacao","matriculado","perdido"].map(s =>
             `<option value="${s}" ${l.status === s ? "selected" : ""}>${rotulo(s)}</option>`).join("")}
         </select>
       </td>
-      <td><div class="acoes">
-        <a class="btn-min" target="_blank" rel="noopener"
+      <td class="c-acoes" data-l="Ações"><div class="acoes">
+        <a class="btn-min wa-btn" target="_blank" rel="noopener"
            href="https://wa.me/55${l.telefone}?text=${encodeURIComponent(
              `Olá ${l.nome.split(" ")[0]}! Aqui é do Instituto Alfa 👋 Vi que você se interessou por *${l.curso}*. Posso te passar as informações?`)}">WhatsApp</a>
         <button class="btn-min" data-ver="${l.id}">Notas</button>
@@ -271,18 +271,18 @@ function renderMatriculas() {
       const total = dele.reduce((s, x) => s + +x.valor, 0);
       const pago = dele.filter(x => x.status === "pago").reduce((s, x) => s + +x.valor, 0);
       const atras = dele.some(x => x.status_efetivo === "atrasado");
-      return `<tr>
-        <td><div class="nome">${esc(m.aluno_nome)}</div>
+      return `<tr class="linha">
+        <td class="c-titulo" data-l="Aluno"><div class="nome">${esc(m.aluno_nome)}</div>
             <div class="sub">${esc(formatarTel(m.aluno_telefone) || "")}</div></td>
-        <td>${esc(m.curso)}<div class="sub">${esc(m.cidade || m.modalidade || "")}</div></td>
-        <td class="num">${dataBR(m.data_inicio)}</td>
-        <td class="num">${BRL(m.valor_matricula)}</td>
-        <td class="num">${BRL(m.valor_mensalidade)}</td>
-        <td class="num">${m.parcelas}x</td>
-        <td class="num">${BRL(pago)} <span class="sub">/ ${BRL(total)}</span>
+        <td class="c-sub" data-l="Curso">${esc(m.curso)}<div class="sub">${esc(m.cidade || m.modalidade || "")}</div></td>
+        <td class="num" data-l="Início">${dataBR(m.data_inicio)}</td>
+        <td class="num" data-l="Matrícula">${BRL(m.valor_matricula)}</td>
+        <td class="num" data-l="Mensalidade">${BRL(m.valor_mensalidade)}</td>
+        <td class="num" data-l="Parcelas">${m.parcelas}x</td>
+        <td class="num" data-l="Pago / Total">${BRL(pago)} <span class="sub">/ ${BRL(total)}</span>
             ${atras ? ` <span class="badge b-atrasado">atraso</span>` : ""}</td>
-        <td><span class="badge b-${m.status}">${m.status}</span></td>
-        <td><div class="acoes">
+        <td class="c-status" data-l="Status"><span class="badge b-${m.status}">${m.status}</span></td>
+        <td class="c-acoes" data-l="Ações"><div class="acoes">
           <button class="btn-min" data-parcelas="${m.id}">Parcelas</button>
           <button class="btn-min perigo" data-cancelar-mat="${m.id}">Cancelar</button>
         </div></td>
@@ -326,15 +326,15 @@ function renderFinanceiro() {
   $("#tabelaFin").innerHTML = !list.length ? "" : `
     <thead><tr><th>Vencimento</th><th>Descrição</th><th>Aluno</th><th>Categoria</th>
       <th>Valor</th><th>Situação</th><th>Pago em</th><th></th></tr></thead>
-    <tbody>${list.map(x => `<tr>
-      <td class="num">${dataBR(x.vencimento)}</td>
-      <td>${esc(x.descricao)}</td>
-      <td class="sub">${esc(x.aluno_nome || "—")}</td>
-      <td class="sub">${esc(x.categoria || "—")}</td>
-      <td class="num ${x.tipo}">${x.tipo === "saida" ? "−" : "+"}${BRL(x.valor)}</td>
-      <td><span class="badge b-${x.status_efetivo}">${x.status_efetivo}</span></td>
-      <td class="num sub">${x.pago_em ? dataBR(x.pago_em) : "—"}</td>
-      <td><div class="acoes">
+    <tbody>${list.map(x => `<tr class="linha">
+      <td class="num c-quando" data-l="Vencimento">${dataBR(x.vencimento)}</td>
+      <td class="c-titulo" data-l="Descrição">${esc(x.descricao)}</td>
+      <td class="sub c-sub" data-l="Aluno">${esc(x.aluno_nome || "—")}</td>
+      <td class="sub" data-l="Categoria">${esc(x.categoria || "—")}</td>
+      <td class="num ${x.tipo} c-valor" data-l="Valor">${x.tipo === "saida" ? "−" : "+"}${BRL(x.valor)}</td>
+      <td class="c-status" data-l="Situação"><span class="badge b-${x.status_efetivo}">${x.status_efetivo}</span></td>
+      <td class="num sub" data-l="Pago em">${x.pago_em ? dataBR(x.pago_em) : "—"}</td>
+      <td class="c-acoes" data-l="Ações"><div class="acoes">
         ${x.status === "pago"
           ? `<button class="btn-min" data-desfazer="${x.id}">Desfazer</button>`
           : `<button class="btn-min primario" data-pagar="${x.id}">Marcar pago</button>`}
