@@ -304,16 +304,16 @@ button, a, select { -webkit-tap-highlight-color: transparent; }
 .aba:active { transform: scale(.94); }
 
 .fab-add {
-  width: 54px; height: 54px; margin: 0 8px; flex: none;
+  width: 44px; height: 44px; margin: 0 6px; flex: none;
   border-radius: 50%; border: 0; cursor: pointer;
   display: grid; place-items: center;
   background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep));
   color: #1a1200;
-  box-shadow: 0 10px 24px -8px rgba(245,184,46,.75);
-  transform: translateY(-14px);
+  box-shadow: 0 6px 16px -6px rgba(245,184,46,.65);
+  transform: translateY(-8px);
 }
-.fab-add svg { width: 25px; height: 25px; }
-.fab-add:active { transform: translateY(-14px) scale(.92); }
+.fab-add svg { width: 19px; height: 19px; }
+.fab-add:active { transform: translateY(-8px) scale(.92); }
 
 /* toast acima da barra */
 .toast { bottom: calc(var(--tabbar-h) + var(--safe-b) + 14px);
